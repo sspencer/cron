@@ -29,6 +29,13 @@ func parse(spec string) (c cronSpec, err error) {
 		{name: "dayOfWeek", min: 0, max: 7, values: dayValues},
 	}
 
+	spec = strings.TrimSpace(spec)
+
+	// substitute strings like "@monthly" for spec like "0 0 1 * *"
+	if str, ok := shortcuts[spec]; ok {
+		spec = str
+	}
+
 	s := strings.Split(spec, " ")
 	if len(s) != len(cronFields) {
 		return c, ErrCronParse
@@ -87,14 +94,13 @@ func (c cronSpec) parseSpec(spec string, min uint64, max uint64, keywords []stri
 	case spec == "*":
 		return c.handleAsterisk(values, min, max)
 	case len(spec) >= 2 && strings.HasPrefix(spec, "*/"):
-		return c.handleSteps(spec[2:], min, max)
+		return c.handleStep(spec[2:], min, max)
 	case strings.Contains(spec, "-"):
 		return c.handleRange(spec, min, max)
 	case regexp.MustCompile(`\d+`).MatchString(spec):
-		return c.handleNumericValues(spec, min, max)
+		return c.handleNumber(spec, min, max)
 	case keywords != nil:
-		part, err := c.handleKeyword(spec, keywords)
-		return setBit(0, part), err
+		return c.handleKeyword(spec, keywords)
 	default:
 		return values, ErrCronParse
 	}
@@ -107,7 +113,7 @@ func (c cronSpec) handleAsterisk(values uint64, min uint64, max uint64) (uint64,
 	return values, nil
 }
 
-func (c cronSpec) handleSteps(step string, min uint64, max uint64) (uint64, error) {
+func (c cronSpec) handleStep(step string, min uint64, max uint64) (uint64, error) {
 	stepValue, err := strconv.Atoi(step)
 	stepUint := uint64(stepValue)
 	if stepUint == 0 || stepUint < min || stepUint > max || err != nil {
@@ -138,7 +144,7 @@ func (c cronSpec) handleRange(spec string, min uint64, max uint64) (uint64, erro
 	return values, nil
 }
 
-func (c cronSpec) handleNumericValues(spec string, min uint64, max uint64) (uint64, error) {
+func (c cronSpec) handleNumber(spec string, min uint64, max uint64) (uint64, error) {
 	num, err := strconv.Atoi(spec)
 	value := uint64(num)
 	if value < min || value > max || err != nil {
@@ -152,7 +158,8 @@ func (c cronSpec) handleKeyword(spec string, keywords []string) (uint64, error) 
 	if index == -1 {
 		return 0, ErrParseKeyword
 	}
-	return uint64(index), nil
+
+	return setBit(0, uint64(index)), nil
 }
 
 func (c cronSpec) parseError(field string) error {

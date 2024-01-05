@@ -39,9 +39,9 @@ func runTicker(spec string) *cron.Job {
 		now := time.Now()
 		t := now.Format("15:04:05.000")
 		if tick {
-			fmt.Printf("TICK: %s\n", t)
+			fmt.Printf("tick: %s\n", t)
 		} else {
-			fmt.Printf("tock: %s\n", t)
+			fmt.Printf("TOCK: %s\n", t)
 		}
 
 		tick = !tick
@@ -63,7 +63,7 @@ func main() {
 		fmt.Println("Running ticker every minute")
 		c = runTicker("* * * * *")
 	} else if n == 2 {
-		fmt.Println("Running ticker")
+		fmt.Println("Running ticker per input")
 		spec := args[1]
 		c = runTicker(spec)
 	} else {
@@ -76,6 +76,6 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
 	<-quit
-	fmt.Println("<ctrl-c> pressed, exiting")
 	c.Stop()
+	fmt.Println("<ctrl-c> pressed, exiting")
 }
