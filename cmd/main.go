@@ -60,7 +60,7 @@ func main() {
 
 	var c *cron.Job
 	if n == 1 {
-		fmt.Println("Running ticker every minute")
+		fmt.Println("Running ticker every minute:")
 		c = runTicker("* * * * *")
 	} else if n == 2 {
 		fmt.Println("Running ticker per input")
