@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 )
@@ -154,7 +153,7 @@ func (c cronSpec) handleNumber(spec string, min uint64, max uint64) (uint64, err
 }
 
 func (c cronSpec) handleKeyword(spec string, keywords []string) (uint64, error) {
-	index := slices.Index(keywords, strings.ToLower(spec))
+	index := sliceIndex(keywords, strings.ToLower(spec))
 	if index == -1 {
 		return 0, ErrParseKeyword
 	}
@@ -180,4 +179,15 @@ func (m *MultiError) Error() string {
 	}
 
 	return strings.Join(errs, "; ")
+}
+
+// sliceIndex returns the index of the first occurrence of v in s,
+// or -1 if not present.
+func sliceIndex[S ~[]E, E comparable](s S, v E) int {
+	for i := range s {
+		if v == s[i] {
+			return i
+		}
+	}
+	return -1
 }
