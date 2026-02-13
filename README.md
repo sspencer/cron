@@ -1,6 +1,6 @@
 # Cron
 
-Cron is a simple library schedule functions to run periodically using 
+Cron is a simple library that schedules functions to run periodically using 
 [Unix Cron Format](https://www.ibm.com/docs/en/db2/11.5?topic=task-unix-cron-format).
 
 A job (parameterless function) is scheduled with the following cron specification string:
@@ -27,7 +27,7 @@ allowed within any field. Multiple values may be specified in a field, separate 
 
 * `* * * * *` run once per minute
 * `*/12 * * * *` run at 0, 12, 24, 36, 48 minutes every hour
-* `0 0 * * *` run at midnight
+* `0 0 * * *` run at midnight every day
 * `0 12 14 3 *` run at 12:30pm, on pie day (March 14)
 
 ## Command Line Example
@@ -67,6 +67,37 @@ func main() {
 	signal.Notify(quit, os.Interrupt)
 	<-quit
 
+	c.Stop()
+}
+```
+
+## Use RunWithContext
+
+```
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"time"
+
+	"github.com/sspencer/cron"
+)
+
+func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	c, err := cron.RunWithContext(ctx, "*/2 * * * *", func() {
+		fmt.Printf("CRON: %s\n", time.Now().Format("15:04:05.000"))
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	time.Sleep(5 * time.Minute)
+	cancel()
 	c.Stop()
 }
 ```

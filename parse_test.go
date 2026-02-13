@@ -37,7 +37,7 @@ func TestParse(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.entry, func(t *testing.T) {
-			_, err := parse(tc.entry)
+			_, err := Parse(tc.entry)
 			if tc.valid && err != nil {
 				t.Errorf("valid entry %q returned error", tc.entry)
 			}
@@ -60,7 +60,7 @@ func TestBits(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.entry, func(t *testing.T) {
-			spec, err := parse(tc.entry)
+			spec, err := Parse(tc.entry)
 			if err != nil {
 				t.Errorf("spec %s failed to parse", err)
 			}
@@ -82,19 +82,19 @@ func TestBits(t *testing.T) {
 func TestMinuteSpec(t *testing.T) {
 	testCases := []struct {
 		entry    string
-		expected cronSpec
+		expected Spec
 	}{
-		{"0 * * * *", cronSpec{minute: 1}},
-		{"1 * * * *", cronSpec{minute: 2}},
-		{"2 * * * *", cronSpec{minute: 4}},
-		{"1,2 * * * *", cronSpec{minute: 6}},
-		{"1-3 * * * *", cronSpec{minute: 14}},
-		{"@hourly", cronSpec{minute: 1}},
+		{"0 * * * *", Spec{minute: 1}},
+		{"1 * * * *", Spec{minute: 2}},
+		{"2 * * * *", Spec{minute: 4}},
+		{"1,2 * * * *", Spec{minute: 6}},
+		{"1-3 * * * *", Spec{minute: 14}},
+		{"@hourly", Spec{minute: 1}},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.entry, func(t *testing.T) {
-			spec, err := parse(tc.entry)
+			spec, err := Parse(tc.entry)
 			if err != nil {
 				t.Errorf("spec %s failed to parse", err)
 			}
@@ -110,19 +110,19 @@ func TestMinuteSpec(t *testing.T) {
 func TestHourSpec(t *testing.T) {
 	testCases := []struct {
 		entry    string
-		expected cronSpec
+		expected Spec
 	}{
-		{"* 0 * * *", cronSpec{hour: 1}},
-		{"* 1 * * *", cronSpec{hour: 2}},
-		{"* 2 * * *", cronSpec{hour: 4}},
-		{"* 1,2 * * *", cronSpec{hour: 6}},
-		{"* 1-3 * * *", cronSpec{hour: 14}},
-		{"@monthly", cronSpec{hour: 1}},
+		{"* 0 * * *", Spec{hour: 1}},
+		{"* 1 * * *", Spec{hour: 2}},
+		{"* 2 * * *", Spec{hour: 4}},
+		{"* 1,2 * * *", Spec{hour: 6}},
+		{"* 1-3 * * *", Spec{hour: 14}},
+		{"@monthly", Spec{hour: 1}},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.entry, func(t *testing.T) {
-			spec, err := parse(tc.entry)
+			spec, err := Parse(tc.entry)
 			if err != nil {
 				t.Errorf("spec %s failed to parse", err)
 			}
@@ -138,18 +138,18 @@ func TestHourSpec(t *testing.T) {
 func TestDayOfMonthSpec(t *testing.T) {
 	testCases := []struct {
 		entry    string
-		expected cronSpec
+		expected Spec
 	}{
-		{"* * 1 * *", cronSpec{dayOfMonth: 2}},
-		{"* * 2 * *", cronSpec{dayOfMonth: 4}},
-		{"* * 1,2 * *", cronSpec{dayOfMonth: 6}},
-		{"* * 1-3 * *", cronSpec{dayOfMonth: 14}},
-		{"@monthly", cronSpec{dayOfMonth: 2}},
+		{"* * 1 * *", Spec{dayOfMonth: 2}},
+		{"* * 2 * *", Spec{dayOfMonth: 4}},
+		{"* * 1,2 * *", Spec{dayOfMonth: 6}},
+		{"* * 1-3 * *", Spec{dayOfMonth: 14}},
+		{"@monthly", Spec{dayOfMonth: 2}},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.entry, func(t *testing.T) {
-			spec, err := parse(tc.entry)
+			spec, err := Parse(tc.entry)
 			if err != nil {
 				t.Errorf("spec %s failed to parse", err)
 			}
@@ -165,33 +165,33 @@ func TestDayOfMonthSpec(t *testing.T) {
 func TestMonthSpec(t *testing.T) {
 	testCases := []struct {
 		entry    string
-		expected cronSpec
+		expected Spec
 	}{
-		{"* * * 1 *", cronSpec{month: 2}},
-		{"* * * 2 *", cronSpec{month: 4}},
-		{"* * * 1,2 *", cronSpec{month: 6}},
-		{"* * * 1-3 *", cronSpec{month: 14}},
-		{"* * * jan *", cronSpec{month: 2}},
-		{"* * * feb *", cronSpec{month: 4}},
-		{"* * * mar *", cronSpec{month: 8}},
-		{"* * * apr *", cronSpec{month: 16}},
-		{"* * * may *", cronSpec{month: 32}},
-		{"* * * jun *", cronSpec{month: 64}},
-		{"* * * jul *", cronSpec{month: 128}},
-		{"* * * aug *", cronSpec{month: 256}},
-		{"* * * sep *", cronSpec{month: 512}},
-		{"* * * oct *", cronSpec{month: 1024}},
-		{"* * * nov *", cronSpec{month: 2048}},
-		{"* * * dec *", cronSpec{month: 4096}},
-		{"* * * Feb *", cronSpec{month: 4}},
-		{"* * * fEB *", cronSpec{month: 4}},
-		{"* * * FEB *", cronSpec{month: 4}},
-		{"@yearly", cronSpec{month: 2}},
+		{"* * * 1 *", Spec{month: 2}},
+		{"* * * 2 *", Spec{month: 4}},
+		{"* * * 1,2 *", Spec{month: 6}},
+		{"* * * 1-3 *", Spec{month: 14}},
+		{"* * * jan *", Spec{month: 2}},
+		{"* * * feb *", Spec{month: 4}},
+		{"* * * mar *", Spec{month: 8}},
+		{"* * * apr *", Spec{month: 16}},
+		{"* * * may *", Spec{month: 32}},
+		{"* * * jun *", Spec{month: 64}},
+		{"* * * jul *", Spec{month: 128}},
+		{"* * * aug *", Spec{month: 256}},
+		{"* * * sep *", Spec{month: 512}},
+		{"* * * oct *", Spec{month: 1024}},
+		{"* * * nov *", Spec{month: 2048}},
+		{"* * * dec *", Spec{month: 4096}},
+		{"* * * Feb *", Spec{month: 4}},
+		{"* * * fEB *", Spec{month: 4}},
+		{"* * * FEB *", Spec{month: 4}},
+		{"@yearly", Spec{month: 2}},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.entry, func(t *testing.T) {
-			spec, err := parse(tc.entry)
+			spec, err := Parse(tc.entry)
 			if err != nil {
 				t.Errorf("spec %s failed to parse", err)
 			}
@@ -207,26 +207,26 @@ func TestMonthSpec(t *testing.T) {
 func TestDayOfWeekSpec(t *testing.T) {
 	testCases := []struct {
 		entry    string
-		expected cronSpec
+		expected Spec
 	}{
-		{"* * * * *", cronSpec{dayOfWeek: 255}},
-		{"* * * * 1", cronSpec{dayOfWeek: 2}},
-		{"* * * * 2", cronSpec{dayOfWeek: 4}},
-		{"* * * * 1,2", cronSpec{dayOfWeek: 6}},
-		{"* * * * 1-3", cronSpec{dayOfWeek: 14}},
-		{"* * * * sun", cronSpec{dayOfWeek: 128}},
-		{"* * * * tue", cronSpec{dayOfWeek: 4}},
-		{"* * * * wed", cronSpec{dayOfWeek: 8}},
-		{"* * * * thu", cronSpec{dayOfWeek: 16}},
-		{"* * * * fri", cronSpec{dayOfWeek: 32}},
-		{"* * * * sat", cronSpec{dayOfWeek: 64}},
-		{"* * * * mon,tue", cronSpec{dayOfWeek: 6}},
-		{"@weekly", cronSpec{dayOfWeek: 1}},
+		{"* * * * *", Spec{dayOfWeek: 255}},
+		{"* * * * 1", Spec{dayOfWeek: 2}},
+		{"* * * * 2", Spec{dayOfWeek: 4}},
+		{"* * * * 1,2", Spec{dayOfWeek: 6}},
+		{"* * * * 1-3", Spec{dayOfWeek: 14}},
+		{"* * * * sun", Spec{dayOfWeek: 128}},
+		{"* * * * tue", Spec{dayOfWeek: 4}},
+		{"* * * * wed", Spec{dayOfWeek: 8}},
+		{"* * * * thu", Spec{dayOfWeek: 16}},
+		{"* * * * fri", Spec{dayOfWeek: 32}},
+		{"* * * * sat", Spec{dayOfWeek: 64}},
+		{"* * * * mon,tue", Spec{dayOfWeek: 6}},
+		{"@weekly", Spec{dayOfWeek: 1}},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.entry, func(t *testing.T) {
-			spec, err := parse(tc.entry)
+			spec, err := Parse(tc.entry)
 			if err != nil {
 				t.Errorf("spec %s failed to parse", err)
 			}
@@ -237,4 +237,122 @@ func TestDayOfWeekSpec(t *testing.T) {
 
 		})
 	}
+}
+
+func TestMultiErrorError(t *testing.T) {
+	err1 := parseError("minute")
+	err2 := parseError("hour")
+	err3 := ErrParseStep
+
+	multiErr := &MultiError{
+		Errors: []error{err1, err2, err3},
+	}
+
+	errStr := multiErr.Error()
+	if errStr == "" {
+		t.Error("MultiError.Error() returned empty string")
+	}
+
+	// Should contain information about all errors
+	if !contains(errStr, "minute") {
+		t.Errorf("error string should contain 'minute': %s", errStr)
+	}
+	if !contains(errStr, "hour") {
+		t.Errorf("error string should contain 'hour': %s", errStr)
+	}
+}
+
+func TestMultiErrorUnwrap(t *testing.T) {
+	err1 := parseError("minute")
+	err2 := parseError("hour")
+
+	multiErr := &MultiError{
+		Errors: []error{err1, err2},
+	}
+
+	unwrapped := multiErr.Unwrap()
+	if len(unwrapped) != 2 {
+		t.Errorf("expected 2 unwrapped errors, got %d", len(unwrapped))
+	}
+
+	if unwrapped[0] != err1 {
+		t.Errorf("first unwrapped error doesn't match")
+	}
+	if unwrapped[1] != err2 {
+		t.Errorf("second unwrapped error doesn't match")
+	}
+}
+
+func TestMultiErrorEmpty(t *testing.T) {
+	multiErr := &MultiError{
+		Errors: []error{},
+	}
+
+	errStr := multiErr.Error()
+	if errStr != "" {
+		t.Errorf("expected empty string for empty MultiError, got: %s", errStr)
+	}
+
+	unwrapped := multiErr.Unwrap()
+	if len(unwrapped) != 0 {
+		t.Errorf("expected 0 unwrapped errors, got %d", len(unwrapped))
+	}
+}
+
+func TestIsNumberSpec(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected bool
+	}{
+		{"0", true},
+		{"1", true},
+		{"42", true},
+		{"999", true},
+		{"-1", true},
+		{"-999", true},
+		{"", false},
+		{"abc", false},
+		{"12abc", false},
+		{"abc12", false},
+		{"1.5", false},
+		{"*", false},
+		{"1-3", false},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.input, func(t *testing.T) {
+			result := isNumberSpec(tc.input)
+			if result != tc.expected {
+				t.Errorf("isNumberSpec(%q) = %v, want %v", tc.input, result, tc.expected)
+			}
+		})
+	}
+}
+
+func TestParseEmptyFieldInCommaList(t *testing.T) {
+	// Test that empty strings in comma-separated lists are rejected
+	testCases := []string{
+		",1,2 * * * *", // Leading comma
+		"1,,2 * * * *", // Double comma
+		"1,2, * * * *", // Trailing comma
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc, func(t *testing.T) {
+			_, err := Parse(tc)
+			if err == nil {
+				t.Errorf("Parse(%q) should return error for empty field in comma list", tc)
+			}
+		})
+	}
+}
+
+// Helper function for string contains check
+func contains(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }

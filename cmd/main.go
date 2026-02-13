@@ -14,13 +14,12 @@ import (
 func runCmd(spec, cmd string) *cron.Job {
 	c, err := cron.Run(spec, func() {
 		fmt.Printf("Run command: %q\n", cmd)
-		exe := exec.Command(cmd)
+		// Use sh -c to properly handle commands with arguments and shell features
+		exe := exec.Command("sh", "-c", cmd)
 		exe.Stdout = os.Stdout
 		exe.Stderr = os.Stderr
-		err := exe.Run()
-		if err != nil {
+		if err := exe.Run(); err != nil {
 			fmt.Println("Error executing command:", err)
-			os.Exit(1)
 		}
 
 		fmt.Println("----------------------------")
@@ -55,22 +54,16 @@ func runTicker(spec string) *cron.Job {
 }
 
 func main() {
-	args := os.Args
-	n := len(args)
-
 	var c *cron.Job
-	if n == 1 {
+	switch len(os.Args) {
+	case 1:
 		fmt.Println("Running ticker every minute:")
 		c = runTicker("* * * * *")
-	} else if n == 2 {
+	case 2:
 		fmt.Println("Running ticker per input")
-		spec := args[1]
-		c = runTicker(spec)
-	} else {
-		spec := args[1]
-		cmd := args[2]
-
-		c = runCmd(spec, cmd)
+		c = runTicker(os.Args[1])
+	default:
+		c = runCmd(os.Args[1], os.Args[2])
 	}
 
 	quit := make(chan os.Signal, 1)

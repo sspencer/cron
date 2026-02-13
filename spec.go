@@ -1,3 +1,25 @@
+// Package cron provides a simple library to schedule functions to run periodically
+// using Unix cron format. It supports the standard 5-field cron syntax:
+//
+//   - * * * *
+//     | | | | |
+//     | | | | +- Day of week (0–7) (Sunday=0 or 7) or Sun, Mon, Tue,…
+//     | | | +--- Month (1–12) or Jan, Feb,…
+//     | | +----- Day of month (1–31)
+//     | +------- Hour (0–23)
+//     +--------- Minute (0–59)
+//
+// The package also supports common shortcuts like @hourly, @daily, @weekly, @monthly, and @yearly.
+//
+// Example usage:
+//
+//	c, err := cron.Run("*/5 * * * *", func() {
+//	    fmt.Println("This runs every 5 minutes")
+//	})
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	defer c.Stop()
 package cron
 
 import (
@@ -6,14 +28,24 @@ import (
 	"time"
 )
 
+// ErrCronParse is returned when a cron specification cannot be parsed.
 var ErrCronParse = errors.New("cron specification error")
+
+// ErrParseStep is returned when a step value is invalid.
 var ErrParseStep = errors.New("invalid step value")
+
+// ErrParseRange is returned when a range value is invalid.
 var ErrParseRange = errors.New("invalid range value")
+
+// ErrParseNumber is returned when a numeric value is invalid.
 var ErrParseNumber = errors.New("invalid numeric value")
+
+// ErrParseKeyword is returned when a keyword value is invalid.
 var ErrParseKeyword = errors.New("invalid keyword value")
 
+// Spec represents a parsed cron schedule.
 // https://www.ibm.com/docs/en/db2/11.5?topic=task-unix-cron-format
-type cronSpec struct {
+type Spec struct {
 	minute             uint64
 	hour               uint64
 	dayOfMonth         uint64
@@ -31,15 +63,23 @@ type cronSpec struct {
 	// 6.32 PM on the 17th, 21st and 29th of November plus each Monday and Wednesday in November each year
 }
 
-func (c cronSpec) String() string {
+// String returns a human-readable representation of the Spec.
+func (c Spec) String() string {
 	return fmt.Sprintf("minute=%b hour=%b dayOfMonth=%b month=%b dayOfWeek=%b",
 		c.minute, c.hour, c.dayOfMonth, c.month, c.dayOfWeek)
 }
 
 var (
+	// monthValues maps month keywords to their numeric positions (1-12).
+	// Index 0 is empty since months are 1-indexed.
 	monthValues = []string{"", "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"}
-	dayValues   = []string{"", "mon", "tue", "wed", "thu", "fri", "sat", "sun"}
-	shortcuts   = map[string]string{
+
+	// dayValues maps day-of-week keywords to their numeric positions (1-7).
+	// Index 0 is empty since Monday=1, ..., Sunday=7 in these keywords.
+	dayValues = []string{"", "mon", "tue", "wed", "thu", "fri", "sat", "sun"}
+
+	// shortcuts defines common cron schedule aliases.
+	shortcuts = map[string]string{
 		"@yearly":   "0 0 1 1 *",
 		"@annually": "0 0 1 1 *",
 		"@monthly":  "0 0 1 * *",
@@ -50,21 +90,41 @@ var (
 	}
 )
 
-// trigger determines if the cronJob should run at specified time
-func (c cronSpec) trigger(now time.Time) bool {
+// Trigger reports whether the spec matches the given time.
+// It returns true if the cron job should run at the specified time.
+func (c Spec) Trigger(now time.Time) bool {
 	return c.matchesTimeFields(now) && c.matchesDayFields(now)
 }
 
-// matchesTimeFields checks if the given `now` time matches the specified time fields in the cronSpec.
-// It compares the minute, hour, and month fields of the cronSpec with the corresponding values of the `now` time.
-func (c cronSpec) matchesTimeFields(now time.Time) bool {
+// Next returns the next time after the provided instant that matches the spec.
+// If no matching time is found within a year, the zero time is returned.
+func (c Spec) Next(from time.Time) time.Time {
+	t := from.Truncate(time.Minute).Add(time.Minute)
+	const maxMinutes = 366 * 24 * 60
+	for range maxMinutes {
+		if c.Trigger(t) {
+			return t
+		}
+		t = t.Add(time.Minute)
+	}
+	return time.Time{}
+}
+
+// matchesTimeFields checks if the given `now` time matches the specified time fields in the Spec.
+// It compares the minute, hour, and month fields of the Spec with the corresponding values of the `now` time.
+func (c Spec) matchesTimeFields(now time.Time) bool {
 	return isSet(c.minute, uint64(now.Minute())) && isSet(c.hour, uint64(now.Hour())) && isSet(c.month, uint64(now.Month()))
 }
 
 // matchesDayFields determines if the current day matches the day fields specified in the cron schedule
-func (c cronSpec) matchesDayFields(now time.Time) bool {
+func (c Spec) matchesDayFields(now time.Time) bool {
 	dayMatch := isSet(c.dayOfMonth, uint64(now.Day()))
-	weekdayMatch := isSet(c.dayOfWeek, uint64(now.Weekday()))
+	weekday := uint64(now.Weekday())
+	weekdayMatch := isSet(c.dayOfWeek, weekday)
+	// In Unix cron, Sunday can be represented by 0 or 7.
+	if weekday == 0 {
+		weekdayMatch = weekdayMatch || isSet(c.dayOfWeek, 7)
+	}
 
 	if c.daysMatchingModeOR {
 		return dayMatch || weekdayMatch

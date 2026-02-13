@@ -3,12 +3,11 @@ package cron
 import (
 	"errors"
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 )
 
-// cronField represents a single field in the cronSpec
+// cronField represents a single field in the Spec.
 type cronField struct {
 	name   string
 	min    uint64
@@ -16,10 +15,9 @@ type cronField struct {
 	values []string
 }
 
-// parse is a function that takes a cron specification string and returns a parsed
-// cronSpec struct along with an error. It splits the specification into individual
-// fields, validates
-func parse(spec string) (c cronSpec, err error) {
+// Parse parses a cron specification string and returns a Spec.
+// It supports the standard 5-field Unix cron format and common shortcuts (e.g. "@weekly").
+func Parse(spec string) (c Spec, err error) {
 	cronFields := []cronField{
 		{name: "minute", min: 0, max: 59},
 		{name: "hour", min: 0, max: 23},
@@ -35,7 +33,7 @@ func parse(spec string) (c cronSpec, err error) {
 		spec = str
 	}
 
-	s := strings.Split(spec, " ")
+	s := strings.Fields(spec)
 	if len(s) != len(cronFields) {
 		return c, ErrCronParse
 	}
@@ -44,13 +42,13 @@ func parse(spec string) (c cronSpec, err error) {
 	f := make([]uint64, len(cronFields))
 
 	for i, cf := range cronFields {
-		f[i], err = c.parseField(cf.name, s[i], cf.min, cf.max, cf.values)
+		f[i], err = parseField(cf.name, s[i], cf.min, cf.max, cf.values)
 		if err != nil {
 			return c, err
 		}
 	}
 
-	return cronSpec{
+	return Spec{
 		minute:             f[0],
 		hour:               f[1],
 		dayOfMonth:         f[2],
@@ -61,17 +59,17 @@ func parse(spec string) (c cronSpec, err error) {
 }
 
 // parseField parses separate cron specifications from a field and aggregates all errors if any.
-func (c cronSpec) parseField(fieldName, fieldSpec string, minAllowed, maxAllowed uint64, keywords []string) (uint64, error) {
+func parseField(fieldName, fieldSpec string, minAllowed, maxAllowed uint64, keywords []string) (uint64, error) {
 	var fieldBits uint64
 	var errs MultiError
 
-	specs := strings.Split(fieldSpec, ",")
-	for _, spec := range specs {
-		bit, err := c.parseSpec(spec, minAllowed, maxAllowed, keywords)
+	specs := strings.SplitSeq(fieldSpec, ",")
+	for spec := range specs {
+		bit, err := parseSpec(spec, minAllowed, maxAllowed, keywords)
 		if err != nil {
 			// If a specification parsing error occurred, accumulate it in the
 			// multi-error instead of returning immediately
-			errs.Errors = append(errs.Errors, errors.Join(c.parseError(fieldName), err))
+			errs.Errors = append(errs.Errors, errors.Join(parseError(fieldName), err))
 			continue
 		}
 		fieldBits |= bit
@@ -86,33 +84,38 @@ func (c cronSpec) parseField(fieldName, fieldSpec string, minAllowed, maxAllowed
 // parseSpec parses the cron specification string and returns the corresponding bit representation.
 // It takes the spec string to parse, the minimum and maximum allowed values for the field, and a slice of keywords.
 // It returns the bit representation of the field and any parsing error encountered.
-func (c cronSpec) parseSpec(spec string, min uint64, max uint64, keywords []string) (uint64, error) {
+func parseSpec(spec string, min uint64, max uint64, keywords []string) (uint64, error) {
 	var values uint64
+
+	// Reject empty strings immediately.
+	if spec == "" {
+		return values, ErrCronParse
+	}
 
 	switch {
 	case spec == "*":
-		return c.handleAsterisk(values, min, max)
+		return handleAsterisk(values, min, max)
 	case len(spec) >= 2 && strings.HasPrefix(spec, "*/"):
-		return c.handleStep(spec[2:], min, max)
+		return handleStep(spec[2:], min, max)
 	case strings.Contains(spec, "-"):
-		return c.handleRange(spec, min, max)
-	case regexp.MustCompile(`\d+`).MatchString(spec):
-		return c.handleNumber(spec, min, max)
+		return handleRange(spec, min, max)
+	case isNumberSpec(spec):
+		return handleNumber(spec, min, max)
 	case keywords != nil:
-		return c.handleKeyword(spec, keywords)
+		return handleKeyword(spec, keywords)
 	default:
 		return values, ErrCronParse
 	}
 }
 
-func (c cronSpec) handleAsterisk(values uint64, min uint64, max uint64) (uint64, error) {
+func handleAsterisk(values uint64, min uint64, max uint64) (uint64, error) {
 	for i := min; i <= max; i++ {
 		values = setBit(values, i)
 	}
 	return values, nil
 }
 
-func (c cronSpec) handleStep(step string, min uint64, max uint64) (uint64, error) {
+func handleStep(step string, min uint64, max uint64) (uint64, error) {
 	stepValue, err := strconv.Atoi(step)
 	stepUint := uint64(stepValue)
 	if stepUint == 0 || stepUint < min || stepUint > max || err != nil {
@@ -125,7 +128,7 @@ func (c cronSpec) handleStep(step string, min uint64, max uint64) (uint64, error
 	return values, nil
 }
 
-func (c cronSpec) handleRange(spec string, min uint64, max uint64) (uint64, error) {
+func handleRange(spec string, min uint64, max uint64) (uint64, error) {
 	parts := strings.Split(spec, "-")
 	initialRange, err1 := strconv.Atoi(parts[0])
 	rangeStart := uint64(initialRange)
@@ -143,7 +146,7 @@ func (c cronSpec) handleRange(spec string, min uint64, max uint64) (uint64, erro
 	return values, nil
 }
 
-func (c cronSpec) handleNumber(spec string, min uint64, max uint64) (uint64, error) {
+func handleNumber(spec string, min uint64, max uint64) (uint64, error) {
 	num, err := strconv.Atoi(spec)
 	value := uint64(num)
 	if value < min || value > max || err != nil {
@@ -152,7 +155,7 @@ func (c cronSpec) handleNumber(spec string, min uint64, max uint64) (uint64, err
 	return setBit(0, value), nil
 }
 
-func (c cronSpec) handleKeyword(spec string, keywords []string) (uint64, error) {
+func handleKeyword(spec string, keywords []string) (uint64, error) {
 	index := sliceIndex(keywords, strings.ToLower(spec))
 	if index == -1 {
 		return 0, ErrParseKeyword
@@ -161,16 +164,17 @@ func (c cronSpec) handleKeyword(spec string, keywords []string) (uint64, error) 
 	return setBit(0, uint64(index)), nil
 }
 
-func (c cronSpec) parseError(field string) error {
+func parseError(field string) error {
 	return fmt.Errorf("error parsing %s field", field)
 }
 
-// MultiError stores multiple errors
+// MultiError stores multiple errors that occurred during parsing.
 type MultiError struct {
+	// Errors contains the list of parsing errors that occurred.
 	Errors []error
 }
 
-// Error implements the error interface for MultiError
+// Error implements the error interface for MultiError.
 func (m *MultiError) Error() string {
 	var errs []string
 
@@ -179,6 +183,11 @@ func (m *MultiError) Error() string {
 	}
 
 	return strings.Join(errs, "; ")
+}
+
+// Unwrap allows errors.Is/As to inspect individual errors.
+func (m *MultiError) Unwrap() []error {
+	return m.Errors
 }
 
 // sliceIndex returns the index of the first occurrence of v in s,
@@ -190,4 +199,12 @@ func sliceIndex[S ~[]E, E comparable](s S, v E) int {
 		}
 	}
 	return -1
+}
+
+func isNumberSpec(spec string) bool {
+	if spec == "" {
+		return false
+	}
+	_, err := strconv.Atoi(spec)
+	return err == nil
 }
